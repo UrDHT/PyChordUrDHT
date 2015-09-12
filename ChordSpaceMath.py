@@ -14,14 +14,14 @@ def idToPoint(dim,id):
     """
     idLong = MultiHash.parseHash(id)
 
-    return tuple(idLong,0)
+    return (idLong,0)
 
 def distance(p0,p1):
     """Returns the distance from point 1 to point 2?"""
     delta = sum([(a-b)**2.0 for a,b in zip(p0,p1)])**0.5
     if delta > MAX_VAL/2:
         return MAX_VAL-delta
-    return 
+    return delta
 
 def midpoint(p0,p1):
     """Returns the midpoint between two points in a Euclidean Space"""

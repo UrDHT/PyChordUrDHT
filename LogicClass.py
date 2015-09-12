@@ -70,13 +70,17 @@ DHT logic can be internally separated into two parts:
 """
 
 from util import PeerInfo #might not be needed if all instantiations happen other places
-import EuclidianSpaceMath as space
+import ChordSpaceMath as space
 
 import threading
 import queue
 import time
 import random
 from errors import *
+
+import UrClientPython3 as clientlib
+client = None
+import pymultihash as MultiHash
 
 from threadpool import Threadpool
 
@@ -88,6 +92,7 @@ MAINTENANCE_SLEEP_PERIOD = 10 #set a periodic sleep of 10s on maintenance
 class DHTLogic(object):
     def __init__(self, peerInfo, key):
         """Initializes the node with a PeerInfo object"""
+        global client
         self.network = None
         self.database = None
         self.key = key
@@ -97,6 +102,7 @@ class DHTLogic(object):
         self.notifiedMe = []
         self.locPeerDict = {}
         self.info = peerInfo
+        self.finger = 0
         if peerInfo.loc is None:
             self.loc = space.idToPoint(2, self.info.id)
             self.info.loc = self.loc
@@ -105,6 +111,7 @@ class DHTLogic(object):
         self.janitorThread = None
         self.peersLock = threading.Lock()
         self.notifiedLock = threading.Lock()
+        client = clientlib.UrDHTClient("UrDHT",[self.info.jsonify()])
 
     def setup(self, network, database):
         """
@@ -222,7 +229,7 @@ class DHTLogic(object):
         lMap = {}
         for l,p in zip(rlocs,records):
             lMap[l]=p
-        canidates = None
+        candidates = None
         with self.peersLock:
             candidates = self.seekCandidates[:]
         if candidates is None:
@@ -244,6 +251,23 @@ class DHTLogic(object):
             except Exception as e:
                 print(e)
                 continue
+
+    def longPeerSelection(self,candidates):
+
+        myid = self.info.loc[0]
+        if len(candidates)>255:
+            candidates = random.sample(candidates,255)
+        finger_target = (myid + 2**self.finger)%(2**256)
+        self.finger=(self.finger+1)%256
+        try:
+            newjson = client.lookup(MultiHash.encodeHash(finger_target,256,0x12))
+            newnode = PeerInfo(newjson['id'],newjson['addr'],tuple(newjson['loc']))
+            if newnode not in candidates and newnode.id != self.info.id:
+                candidates.append(newnode)
+        except Exception:
+            print("Looking up a finger failed, is there a network?")
+        return candidates
+
 
 
 
@@ -327,8 +351,7 @@ class DHTJanitor(threading.Thread):
                     newShortPeersList += [locDict[x] for x in newShortPeerLocsList]
                     if needed < len(leftoversList):
                         leftoversList = [locDict[x] for x in sortedLeftoverLocsList[needed:]]
-                if len(leftoversList) > MAX_LONGPEERS:
-                    leftoversList = random.sample(leftoversList,MAX_LONGPEERS)
+
 
 
 
@@ -358,6 +381,10 @@ class DHTJanitor(threading.Thread):
                 #print("done mapping")
 
                 trigger_change = False
+
+                leftoversList = self.parent.longPeerSelection(leftoversList)
+
+
                 with self.parent.peersLock:
                     if self.parent.shortPeers != newShortPeersList:
                         trigger_change = True #consider reducing this to a copy, and compare outside the lock

@@ -6,6 +6,7 @@ pyMultihash is a python implementation of the Multihash standard: https://github
 import hashlib
 from . import base58
 import binascii
+import math
 
 """
 These first two methods are kinda inefficient, but python is not really designed to mess with bytes
@@ -57,4 +58,12 @@ def genHash(bytestr,func_id):
     size = hashfunc.digest_size
     bytestr = b''+func_id.to_bytes(1,"big")+size.to_bytes(1,"big")+data
     return base58.encode(bytes_to_long(bytestr))
+
+def encodeHash(int_hash,bitsize,func_id):
+    data = bytes(int_to_byte_array(int_hash))
+    bytesize = math.ceil(bitsize/8.0)
+    bytestr = b''+func_id.to_bytes(1,"big")+bytesize.to_bytes(1,"big")+data
+    return base58.encode(bytes_to_long(bytestr))
+    
+
 

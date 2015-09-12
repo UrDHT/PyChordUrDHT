@@ -1,3 +1,5 @@
+import json
+
 class PeerInfo(object):
     """
         Peerinfo does not actually do much
@@ -25,3 +27,7 @@ class PeerInfo(object):
 
     def __repr__(self):
         return str(self)
+
+    def jsonify(self):
+        return json.loads(str(self))
+

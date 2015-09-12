@@ -15,7 +15,7 @@ def bootstrapSubnet(subnet,UrDHTPeers):
 	return UrDHTClient(subnet,subnetPeers)
 
 def dial(subnet,target, cmd, **kwargs):
-
+	print("dialing")
 	buildURL = [target["addr"]]
 	buildURL.append(subnet+"/client/")
 	buildURL.append(cmd)
@@ -65,8 +65,8 @@ class UrDHTClient(object):
 		while(not nextHop or nextHop["id"]!=serverStack[-1]["id"]):
 			try:
 				nextHop = dial(self.subnet,serverStack[-1],"seek",id=targetID)
-			except:
-				print(serverStack.pop(),"failed dial")
+			except Exception as e:
+				print(serverStack.pop(),"failed dial",e)
 
 			if len(serverStack) == 0:
 				raise Exception("lookup failed")
